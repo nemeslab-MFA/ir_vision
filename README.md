@@ -132,7 +132,7 @@ The tool **warns** when the VIS image is near saturation, when the white balance
 
 ## Citation and contact
 
-Kálvin György, HUN-REN Centre for Energy Research (EK), Budapest. If you use this tool, please cite: *(add the publication when available)*.
+György Kálvin, HUN-REN Centre for Energy Research (EK), Budapest. If you use this tool, please cite: *(add the publication when available)*.
 
 ## License
 
