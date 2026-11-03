@@ -1,6 +1,6 @@
 # Measurement checklist for `residuals.py`
 
-A one-page checklist to use at the microscope. Each item is something the tool needs or checks.
+A one-page checklist to use at the microscope. Each item is something the tool needs or checks; the step-by-step version is [`IMAGING_PROTOCOL.md`](IMAGING_PROTOCOL.md).
 
 The calibration in `calib/calib.npz` only holds for **90 nm SiO₂/Si**, the same objective and the same IR camera and filter. Other setups need a new calibration.
 

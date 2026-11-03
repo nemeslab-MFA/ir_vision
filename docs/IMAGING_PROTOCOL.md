@@ -1,100 +1,119 @@
-# Imaging protocol: VIS + IR images for rhombohedral graphite detection
+# Imaging protocol
 
-Version 2026-10-21. Follow the steps in order during one session. The background is in `measurement_checklist.md`.
+How to take VIS and IR images for `residuals.py`, step by step, in one session. The short version for ticking off at the microscope is [`MEASUREMENT_CHECKLIST.md`](MEASUREMENT_CHECKLIST.md).
 
-**Why it matters.** The RG signal in IR is small: about 0.004–0.02 in contrast for purple to dark-blue flakes, and less on thin flakes. Uneven illumination, camera offsets and VIS colour errors are as large as that, unless they are measured in the same session and the images are taken the same way every time.
+**Why the care.** Rhombohedral graphite is only 0.4–2 % darker in IR than hexagonal graphite of the same thickness. Uneven illumination, camera offsets and VIS colour errors are just as large. The tool can remove them only if they are measured in the same session and every image is taken with the same settings.
 
 ---
 
-## 1. Before the session
+## 1. Requirements
 
-- [ ] Choose the flakes (section 7). Keep **one flake blind**: measure its Raman map, but don't open the map.
-- [ ] Use the same substrate as before (90 nm SiO₂/Si). Write it down if it is different.
-- [ ] Switch on the lamp and let it **warm up for at least 20 minutes**.
+The calibration shipped with the tool (`calib/calib.npz`) is valid for:
 
-## 2. Fix the settings (once, for the whole session)
+- **90 nm SiO₂/Si** substrate;
+- the same objective, IR camera and IR filter as the calibration measurements;
+- flakes from **dark blue to light purple** in the VIS image (VIS red contrast about −0.70 to −0.15). Very thick flakes (light blue, yellow, white) fall outside it.
 
-Set everything once and write it into `notes.txt`. **Don't change any of these during the session.** If something has to change, repeat steps 3 and 6 for the new settings.
+A different substrate, objective or camera needs a new calibration.
 
-| | Setting | Target |
+## 2. Start of the session
+
+1. Switch on the lamp and let it **warm up for at least 20 minutes**. The lamp brightness drifts while it warms up, and the flat field (step 4) would no longer match the flake images.
+2. Clean the sample surface if needed. Dust shows up as dark dots in IR.
+
+## 3. Set the cameras (once per session)
+
+Set everything on a piece of bare substrate next to the flakes, then **don't change any of it** until the session ends. If a setting must change, take new dark and flat frames (step 4) for the new setting.
+
+**IR camera**
+
+| Setting | Target | Why |
 |---|---|---|
-| IR | exposure, gain, **brightness / black level** | substrate at about 50–80 % of full scale (≈ 11 000 of 16 383 is good); no flake pixel at 0; thin parts not saturated |
-| IR | field diaphragm | open enough for the flake plus a substrate margin; **don't touch it again** |
-| IR | filter / band | always the same; write it down |
-| VIS | exposure | manual; **red channel of the substrate at most ~200 of 255** (now ≈ 225, too bright: thick parts saturate) |
-| VIS | white balance | manual, set on the **same white reference sample** every session |
-| both | objective, lamp setting | always the same; write them down |
-| both | HDR, auto-contrast, gamma, enhancement | **off** |
-| both | file format | **16-bit TIFF**, raw camera image, no overlays (scale bar, text) |
+| file format | raw **16-bit TIFF**, no scale bar or text burned in | the tool needs the raw camera counts |
+| black level / brightness | one fixed value | it adds an offset to every pixel; the dark frame measures it |
+| exposure, gain | substrate at **50–80 % of full scale**; no flake pixel at 0; substrate not saturated | linear signal on both flake and substrate |
+| frame averaging | on, if the camera has it (e.g. 16 frames) | lower noise, most important on thin flakes |
+| field diaphragm | open enough for flake plus substrate margin | fixed, because the flat field depends on it |
 
-## 3. Calibration frames at the START
+**VIS camera**
 
-Take all of these with the settings from step 2.
+| Setting | Target | Why |
+|---|---|---|
+| file format | **TIFF** (8 or 16 bit, RGB), no JPEG, no overlays | lossless colours |
+| exposure | manual; **every substrate channel ≤ ~220 of 255** | saturated channels compress the colour contrast |
+| white balance | manual, set on the **same white reference** every session; bare substrate ≈ **R:G:B 227:145:175** | the hexagonal prediction is calibrated on these colours |
 
-- [ ] **IR dark:** 3 frames with the lamp blocked or the shutter closed.
-- [ ] **IR flat:** 5–8 frames of **bare substrate** (no flakes, no dust in view). Move the stage a little between frames.
-- [ ] **VIS flat (new, required):** 3–5 frames of bare substrate, stage moved between frames, same VIS exposure and white balance.
+**Both:** auto-exposure, auto white balance, HDR, auto-contrast, gamma and image enhancement **off**. Keep the objective and lamp setting the same as in the calibration.
 
-## 4. Each flake
+Write all settings into `notes.txt` (step 7).
 
-1. Centre the flake. Leave **substrate all around it, at least ~25 % of the field**. The flake must not touch the field edge.
-2. Focus on the flake surface. VIS has to be **sharp** (375 was out of focus and failed).
-3. **VIS image**, position A.
-4. **IR, position A: 16 frames** (or as many as practical). Averaging them cuts the noise 4×, which is most important for **thin flakes**.
-5. Move the stage by about **¼ of the field** (60–90 IR px) in one direction. Don't refocus unless the image is clearly soft.
-6. **IR, position B: 16 frames.** Also take a **VIS image at position B** (it checks the VIS flat field).
-7. Check the histograms before moving on:
-   - IR: no spike at 0, no saturated substrate.
-   - VIS: substrate not saturated, red channel ≤ ~200.
+## 4. IR calibration frames (start of the session)
 
-## 5. Raman maps (calibration flakes only)
+Take these with exactly the settings from step 3.
 
-- [ ] Map the whole flake plus a little substrate.
-- [ ] Export as PNG, ideally with a **transparent background**; the colour-bar layout of IR v4 also works. Raw data values are a bonus.
-- [ ] Write down the **scale-bar length** and the step size (µm per pixel) for every map.
-- [ ] **Check that the map's file name matches the flake** (`66-03` vs `66_01` caused doubts).
-- [ ] Blind flake: save its map, but don't open it.
+1. **Dark frames (required):** block the lamp or close the shutter, then take **3 IR frames**. They measure the camera offset and hot pixels.
+2. **Flat frames (strongly recommended):** move to **bare substrate** with no flakes and no dust in view, then take **5–8 IR frames**, moving the stage slightly between frames. They record the vignetting, the bright spot in the centre of the field and fixed dust on the optics. Moving the stage lets the tool separate dust on the sample (which moves) from the illumination pattern (which doesn't).
 
-## 6. Calibration frames at the END
+## 5. Each flake
 
-- [ ] Repeat step 3: IR dark (3), IR flat (5–8), VIS flat (3–5).
+1. **Position:** centre the flake. Leave **bare substrate around it on at least 25 % of the field**, and keep the flake **away from the field edge**. The substrate is the reference for every contrast value and for removing the background.
+2. **Focus** on the flake surface. The VIS image must be sharp; a blurred VIS image breaks the registration and the colour-to-IR prediction.
+3. **VIS image.**
+4. **IR image 1**, without moving the stage.
+5. **Shift:** move the stage by about **¼ of the field** in one direction. Don't refocus unless the image is clearly soft.
+6. **IR image 2** at the shifted position. This is optional but recommended: the tool averages the two, which halves the noise, and any flat-field error shows up as a mismatch between them.
+7. **Check the histograms** before moving on:
+   - IR: no spike at 0, substrate not saturated;
+   - VIS: substrate ≤ ~220 in every channel.
 
-Comparing the start and end frames shows whether the lamp or the illumination drifted during the session.
+## 6. End of the session
 
-## 7. Which flakes to image
+Repeat step 4: **3 dark frames and 5–8 flat frames**. If they differ clearly from the start frames, the lamp drifted during the session; use the frames closer in time to each flake.
 
-- [ ] **Thin flakes and thin parts (light purple, a few to ~10 layers)** with hexagonal and RG areas, plus Raman maps. These matter most scientifically, and the calibration has almost no data there. Image them with the most IR frames (16 or more).
-- [ ] Purple to dark-blue flakes with **RG and hexagonal areas at the same thickness**, side by side.
-- [ ] A spread of thicknesses, including some thick **hexagonal** areas.
-- [ ] Flakes at different positions in the field (the flake itself centred, but different flakes at different stage positions).
-- [ ] Few wrinkles and folds on the areas of interest.
-- [ ] Note in `notes.txt` which flakes have light-blue (very thick) parts.
+## 7. Files and notes
 
-## 8. Files and notes
+Store the session like this:
 
 ```
-<session folder>/
-  calibration/  ir_dark_start_1..3.tif   ir_flat_start_1..8.tif   vis_flat_start_1..5.tif
-                ir_dark_end_1..3.tif     ir_flat_end_1..8.tif     vis_flat_end_1..5.tif
-  VIS/          <flake>_VIS_A.tif   <flake>_VIS_B.tif
-  IR/           <flake>_IR_A_01..16.tif   <flake>_IR_B_01..16.tif
-  raman/        <flake>.png   (later: <flake> copy.png with RG painted pure green, unsure pure blue)
+<session>/
+  calibration/   dark_start_1..3.tif   flat_start_1..8.tif
+                 dark_end_1..3.tif     flat_end_1..8.tif
+  <flake A>/     vis.tif   ir1.tif   ir2.tif
+  <flake B>/     vis.tif   ir1.tif   ir2.tif
   notes.txt
 ```
 
+Before running the tool, copy the dark and flat frames into each flake folder (names starting with `dark` and `flat`), or point to them with `--dark` and `--flats`:
+
+```bash
+python residuals.py "<flake A>" --dark "calibration/dark_start_*.tif" --flats "calibration/flat_start_*.tif"
+```
+
 `notes.txt` should contain:
-- date and objective
-- IR exposure, gain, brightness / black level, filter
-- VIS exposure and white balance (and which white sample)
-- lamp setting and substrate
-- the times of the start and end calibration frames
-- which flakes are thick, and which flake is blind
-- for each Raman map: scale bar and step size
 
-## 9. Before leaving the microscope
+- date, sample, substrate;
+- objective and lamp setting;
+- IR exposure, gain, black level, frame averaging, filter;
+- VIS exposure, white balance and which white reference;
+- times of the start and end calibration frames;
+- anything unusual (refocused, setting changed, lamp flicker).
 
-- [ ] All calibration frames are taken, at the start **and** at the end.
-- [ ] Every flake has VIS A, VIS B, IR A (×16) and IR B (×16).
-- [ ] The histograms were checked (step 4.7).
-- [ ] `notes.txt` is complete.
-- [ ] One flake is kept blind.
+## 8. Before leaving the microscope
+
+- [ ] Dark and flat frames taken at the start **and** at the end.
+- [ ] Every flake has a VIS image and IR image 1 (and preferably IR image 2).
+- [ ] Histograms checked for every flake.
+- [ ] `notes.txt` complete.
+
+## 9. After running the tool
+
+Read `<name>_summary.txt`. Each warning points to something to fix in the next session:
+
+| Warning | Fix next time |
+|---|---|
+| VIS substrate channel near saturation | lower the VIS exposure |
+| VIS white balance differs from the calibration | set the white balance on the calibration's white reference |
+| no flat field / only 2 flat frames | take 5–8 flat frames, stage moved between them |
+| only one IR image | take the shifted second IR image |
+| bare substrate covers only … % of the VIS image / almost no substrate in the IR field | choose a position with more substrate around the flake |
+| … % of the flake outside the calibrated colour range | flake too thick, or VIS settings differ from the calibration |
