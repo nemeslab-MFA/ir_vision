@@ -62,7 +62,7 @@ python residuals.py my_flake --part thick     # + figures of the thick part only
 python residuals.py --vis V.tif --ir A.tif --ir2 B.tif --dark "dark*.tif" --flats "flat*.tif" --out out --name flake7
 ```
 
-Files are recognised by name (`dark*`/`black*`, `flat*`) and by type (the RGB image is the VIS image). How to take the images: [`docs/IMAGING_PROTOCOL.md`](docs/IMAGING_PROTOCOL.md).
+Files are recognised by name (`dark*`/`black*`, `flat*`) and by type (the RGB image is the VIS image). How to take the images: [`docs/MEASUREMENT_CHECKLIST.md`](docs/MEASUREMENT_CHECKLIST.md).
 
 ### Output
 
