@@ -1,5 +1,8 @@
+# the tool (residuals.py)
 numpy>=1.24
 scipy>=1.10
 scikit-image>=0.21
 tifffile>=2023.1
 matplotlib>=3.7
+# the notebook (demo.ipynb); already included in Anaconda
+jupyterlab>=3.0

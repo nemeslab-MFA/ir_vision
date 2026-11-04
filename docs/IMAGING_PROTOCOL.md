@@ -1,6 +1,6 @@
 # Imaging protocol
 
-How to take VIS and IR images for `residuals.py`, step by step, in one session. The short version for ticking off at the microscope is [`MEASUREMENT_CHECKLIST.md`](MEASUREMENT_CHECKLIST.md).
+How to take VIS and IR images for `residuals.py`, step by step, in one session, and how to run the tool on them with the notebook `demo.ipynb` (section 9). The short version for ticking off at the microscope is [`MEASUREMENT_CHECKLIST.md`](MEASUREMENT_CHECKLIST.md).
 
 **Why the care.** Rhombohedral graphite is only 0.4–2 % darker in IR than hexagonal graphite of the same thickness. Uneven illumination, camera offsets and VIS colour errors are just as large. The tool can remove them only if they are measured in the same session and every image is taken with the same settings.
 
@@ -83,12 +83,6 @@ Store the session like this:
   notes.txt
 ```
 
-Before running the tool, copy the dark and flat frames into each flake folder (names starting with `dark` and `flat`), or point to them with `--dark` and `--flats`:
-
-```bash
-python residuals.py "<flake A>" --dark "calibration/dark_start_*.tif" --flats "calibration/flat_start_*.tif"
-```
-
 `notes.txt` should contain:
 
 - date, sample, substrate;
@@ -105,9 +99,31 @@ python residuals.py "<flake A>" --dark "calibration/dark_start_*.tif" --flats "c
 - [ ] Histograms checked for every flake.
 - [ ] `notes.txt` complete.
 
-## 9. After running the tool
+## 9. Running the tool
 
-Read `<name>_summary.txt`. Each warning points to something to fix in the next session:
+The easiest way is the notebook **`demo.ipynb`** in the tool's folder (setup on Windows: see the README, *Quick start in Jupyter*):
+
+1. Open it in JupyterLab and run the first cells (**Shift + Enter**): they check the installation and run the demo flakes.
+2. In section 4 of the notebook, set:
+   - `FLAKE_FOLDER` to a flake folder, e.g. `r"C:\data\<session>\<flake A>"`;
+   - `CALIBRATION_FOLDER` to the session's `calibration` folder, so the dark and flat frames don't have to be copied into every flake folder. Leave it `None` if they are in the flake folder (names starting with `dark` and `flat`);
+   - `PART = "thick"` (or `"thin"`) for extra figures of one part of the flake.
+3. Run the cell. The figures appear in the notebook; the files are saved in `<flake A>/residuals/`.
+
+For all flakes of the session at once, set `PARENT_FOLDER` to the session folder in section 5 of the notebook.
+
+From the command line (on Windows: Anaconda Prompt), the same is:
+
+```bash
+python residuals.py "<session>/<flake A>" --dark "<session>/calibration/dark*.tif" --flats "<session>/calibration/flat*.tif"
+python residuals.py "<session>" --batch --dark "<session>/calibration/dark*.tif" --flats "<session>/calibration/flat*.tif"
+```
+
+`dark*` and `flat*` take both the start and end frames; to use only one set, write `dark_start_*` and `flat_start_*`.
+
+## 10. After running the tool
+
+Check the warnings. They are printed in the notebook (above the figures) and saved in `<name>_summary.txt`. Each one points to something to fix in the next session:
 
 | Warning | Fix next time |
 |---|---|

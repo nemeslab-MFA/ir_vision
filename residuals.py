@@ -423,7 +423,8 @@ def run_one(name, inp, out, cal, no_thick=False, vis_orientation=True, part=None
 def run(folder=None, *, vis=None, ir=None, ir2=None, dark=None, flats=None, out=None, name=None, part=None,
         part_by="auto", no_thick=False, ir_orientation=False, calib=None):
     """Process one flake. Either `folder` (files found by name, see README) or explicit files: vis, ir, optional ir2,
-    dark and flats (a file, a list of files, or a pattern like "C:/data/dark*.tif").
+    dark and flats (a file, a list of files, or a pattern like "C:/data/dark*.tif"). With a folder, dark and flats
+    (if given) replace the folder's own dark*/flat* files, e.g. one calibration folder for the whole session.
     part: None, "thick" or "thin". Outputs go to <folder>/residuals unless `out` is given.
     Returns a dict: name, out, figures (SVG paths), residual_median, warnings, result (the arrays)."""
     reset_state()
@@ -437,6 +438,10 @@ def run(folder=None, *, vis=None, ir=None, ir2=None, dark=None, flats=None, out=
     elif folder:
         folder = os.path.normpath(folder)
         inp = find_inputs(folder)
+        if dark:                                    # shared session calibration frames instead of the folder's own
+            inp["dark"] = dark
+        if flats:
+            inp["flat"] = flats
         name = name or os.path.basename(folder)
         out = out or os.path.join(folder, "residuals")
     else:
@@ -480,7 +485,7 @@ if __name__ == "__main__":
     ap.add_argument("folder", nargs="?", help="flake folder (or parent folder with --batch)")
     ap.add_argument("--batch", action="store_true", help="process every sub-folder of FOLDER that contains TIFFs")
     ap.add_argument("--vis"); ap.add_argument("--ir"); ap.add_argument("--ir2", help="same flake, shifted (optional)")
-    ap.add_argument("--dark", help='file or glob, e.g. "dark*.tif"'); ap.add_argument("--flats", help='glob, e.g. "flat*.tif"')
+    ap.add_argument("--dark", help='file or glob, e.g. "dark*.tif" (with a folder: replaces its own dark files)'); ap.add_argument("--flats", help='glob, e.g. "flat*.tif" (with a folder: replaces its own flat files)')
     ap.add_argument("--out", help="output folder (default: <flake folder>/residuals)")
     ap.add_argument("--name", help="flake name used in the output files (default: folder name)")
     ap.add_argument("--calib", default=f"{HERE}/calib/calib.npz", help="calibration file (default: calib/calib.npz)")
@@ -496,9 +501,9 @@ if __name__ == "__main__":
         if a.vis:                                          # explicit files
             run(vis=a.vis, ir=a.ir, ir2=a.ir2, dark=a.dark, flats=a.flats, out=a.out, name=a.name, **kw)
         elif a.folder and a.batch:
-            run_batch(a.folder, out=a.out, **kw)
+            run_batch(a.folder, out=a.out, dark=a.dark, flats=a.flats, **kw)
         elif a.folder:
-            run(a.folder, out=a.out, name=a.name, **kw)
+            run(a.folder, out=a.out, name=a.name, dark=a.dark, flats=a.flats, **kw)
         else:
             ap.print_help()
     except InputError as e:

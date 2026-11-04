@@ -49,8 +49,7 @@ residuals.show(r)                                         # in Jupyter: show the
 ```bash
 git clone https://github.com/nemeslab-MFA/ir_vision.git
 cd ir_vision
-pip install -r requirements.txt          # numpy, scipy, scikit-image, tifffile, matplotlib
-pip install jupyterlab                   # only for the notebook
+pip install -r requirements.txt          # numpy, scipy, scikit-image, tifffile, matplotlib, jupyterlab
 ```
 
 Python 3.9 or newer. On Windows, use `py -m pip` if `pip` is not found.

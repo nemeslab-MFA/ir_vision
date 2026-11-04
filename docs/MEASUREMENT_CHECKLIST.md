@@ -46,11 +46,18 @@ my_flake/
   flat1.tif ... flat8.tif
 ```
 
-- [ ] The session's dark and flat frames are **copied into every flake folder**, or passed with `--dark "…/dark*.tif" --flats "…/flat*.tif"`.
+- [ ] The session's dark and flat frames are **copied into every flake folder**, or kept in one `calibration` folder that is given to the tool (`CALIBRATION_FOLDER` in the notebook).
 - [ ] No other images (screenshots, exports) in the flake folder.
 - [ ] A `notes.txt` with: date, objective, IR exposure / gain / black level / filter, VIS exposure and white balance (which white reference), lamp setting, substrate.
 
-## 5. After running the tool
+## 5. Running the tool
 
-- [ ] Read `<name>_summary.txt`. Each warning points to a setting from sections 1–3 to fix next time.
+- [ ] Open **`demo.ipynb`** in JupyterLab (Windows: Anaconda Prompt → `cd` to the tool's folder → `jupyter lab demo.ipynb`).
+- [ ] Run the first cells (**Shift + Enter**): installation check and demo.
+- [ ] Section 4: set `FLAKE_FOLDER` (and `CALIBRATION_FOLDER`, `PART` if needed) and run the cell. Section 5: all flakes of a session at once.
+- [ ] Results: figures in the notebook, files in `<flake folder>/residuals/`.
+
+## 6. After running the tool
+
+- [ ] Read the warnings (printed in the notebook above the figures, and in `<name>_summary.txt`). Each one points to a setting from sections 1–3 to fix next time.
 - [ ] Compare blue areas only with neighbouring areas of the same VIS colour (thickness).
