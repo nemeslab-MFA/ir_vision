@@ -297,6 +297,10 @@ def check_vis(path):
     v = tifffile.imread(path)[..., :3]
     full = 255 if v.max() <= 255 else 65535
     ok = np.all(v < 0.98 * full, -1)                          # saturated (very thick) flakes are not substrate
+    if 1 - ok.mean() > 0.2:                                   # the substrate itself is saturated: no colour reference
+        WARN.append(f"VIS image overexposed: {1 - ok.mean():.0%} of the pixels are saturated, probably including the bare "
+                    "substrate. The substrate reference is then wrong and the residual is NOT usable. Retake the VIS image "
+                    "with a lower exposure (substrate channels <= ~220).")
     g = v.astype(np.float32).mean(-1); h, e = np.histogram(g[ok], bins=256); mode = e[np.argmax(h)]
     sub = ok & (np.abs(g / mode - 1) < 0.05)
     lev = [float(np.median(v[..., k][sub])) / full * 255 for k in range(3)]
