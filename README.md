@@ -15,17 +15,47 @@ It takes about 5–10 s per flake on a laptop. The tool shows *candidates*; conf
 
 ---
 
-## Installation
+## Quick start in Jupyter (Windows, macOS, Linux)
+
+The easiest way: the notebook [`demo.ipynb`](demo.ipynb) runs the demo and then your own flakes, step by step. No programming needed: you only change a folder path.
+
+**1. Install Python with Jupyter (once).** Download and install **Anaconda** from https://www.anaconda.com/download (default options). It contains Python, Jupyter and all the packages this tool needs.
+
+**2. Download the tool.** On the GitHub page, click the green **Code** button → **Download ZIP**, and unzip it, e.g. to `Documents\ir_vision`. (With git: `git clone https://github.com/nemeslab-MFA/ir_vision.git`.)
+
+**3. Open the notebook.**
+- Windows: start **Anaconda Prompt** from the Start menu, then type
+  ```
+  cd %USERPROFILE%\Documents\ir_vision
+  jupyter lab demo.ipynb
+  ```
+- macOS / Linux: the same in a terminal (`cd ~/Documents/ir_vision`).
+- Or: open **Anaconda Navigator** → **JupyterLab**, browse to the folder and double-click `demo.ipynb`.
+
+**4. Run it.** Click into the first grey cell and press **Shift + Enter** for each cell, top to bottom. The first cell checks the installation.
+
+In Python code, the same is three lines:
+
+```python
+import residuals
+r = residuals.run(r"C:\data\my_flake", part="thick")   # part is optional
+residuals.show(r)                                         # in Jupyter: show the figures
+```
+
+`residuals.run_batch(parent_folder)` processes every sub-folder; see the notebook for all options.
+
+## Installation without Anaconda
 
 ```bash
 git clone https://github.com/nemeslab-MFA/ir_vision.git
 cd ir_vision
 pip install -r requirements.txt          # numpy, scipy, scikit-image, tifffile, matplotlib
+pip install jupyterlab                   # only for the notebook
 ```
 
-Python 3.9 or newer.
+Python 3.9 or newer. On Windows, use `py -m pip` if `pip` is not found.
 
-## Quick start: the demo
+## The demo flakes
 
 Two example flakes are included, with Raman-confirmed rhombohedral areas:
 
@@ -33,6 +63,8 @@ Two example flakes are included, with Raman-confirmed rhombohedral areas:
 |---|---|
 | `demo/191` | VIS, two IR images (flake shifted between them), dark frame, 5 flat-field frames |
 | `demo/80_02` | VIS, one IR image, dark frame, 8 flat-field frames |
+
+Run them from the notebook, or from the command line:
 
 ```bash
 python residuals.py demo --batch
@@ -54,6 +86,8 @@ my_flake/
   dark1.tif, dark2.tif ...   IR with the lamp blocked, same IR settings (required)
   flat1.tif ... flat5.tif    IR of bare substrate, stage moved between frames (strongly recommended)
 ```
+
+In the notebook, set `FLAKE_FOLDER` (section 4) and run the cell. From the command line (on Windows, in Anaconda Prompt):
 
 ```bash
 python residuals.py my_flake                  # one flake  -> my_flake/residuals/

@@ -1,0 +1,12 @@
+# consistent line endings on Windows, macOS and Linux
+* text=auto
+*.py text eol=lf
+*.md text eol=lf
+*.ipynb text eol=lf
+*.txt text eol=lf
+
+# binary data
+*.tif binary
+*.tiff binary
+*.npz binary
+*.svg binary

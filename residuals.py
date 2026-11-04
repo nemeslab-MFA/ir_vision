@@ -8,6 +8,10 @@ Quick start (one folder per flake, containing vis*.tif, ir*.tif, dark*.tif, flat
     python residuals.py path/to/parent_folder --batch        # every sub-folder that contains images
 Explicit files:
     python residuals.py --vis V.tif --ir IR.tif [--ir2 IR_shifted.tif] --dark "dark*.tif" --flats "flat*.tif"
+In Python / Jupyter (see demo.ipynb):
+    import residuals
+    r = residuals.run("path/to/flake_folder", part="thick")
+    residuals.show(r)
 """
 import argparse, glob, os, time
 import numpy as np
@@ -22,6 +26,15 @@ WARN = []                 # warnings collected during a run (printed and written
 FLAT = {"median": None, "used_for_ir": False, "sub_share": 1.0, "vis_sub_share": 1.0}   # substrate shares: IR field / whole VIS image   # median flat level (dark subtracted): absolute substrate reference for flake-filled fields
 VIS_MAX = 1600            # VIS long side used by the calibration geometry
 K = 50                    # kNN neighbours
+
+
+class InputError(Exception):
+    """Missing or unusable input files (a clear message instead of a traceback)."""
+
+
+def reset_state():
+    WARN.clear()
+    FLAT.update(median=None, used_for_ir=False, sub_share=1.0, vis_sub_share=1.0)
 
 
 # ---------------- loading / corrections ----------------
@@ -55,7 +68,7 @@ def ir_session(dark_glob, flat_glob, ir_example=None):
     pick = lambda x: list(x) if isinstance(x, (list, tuple)) else (sorted(glob.glob(x)) if x else [])
     darks, flats = pick(dark_glob), pick(flat_glob)            # a glob pattern or a list of files
     if not darks:
-        raise SystemExit("ERROR: no dark frame found (dark*.tif, lamp blocked, same IR settings) - it is required.")
+        raise InputError("no dark frame found (dark*.tif, lamp blocked, same IR settings) - it is required.")
     dark = np.median([tifffile.imread(f).astype(np.float32) for f in darks], 0)
     if len(flats) == 2:
         WARN.append("only 2 flat-field frames: dust specks were removed by comparing the two frames; 3-8 frames "
@@ -256,7 +269,10 @@ def process(vis_path, ir_path, dark, Fn, field, cal, ir2_path=None, tf=None, no_
 # ---------------- input finding and checks ----------------
 def find_inputs(folder):
     """Classify the TIFFs of one flake folder by name and shape."""
-    files = sorted(glob.glob(os.path.join(folder, "*.tif")) + glob.glob(os.path.join(folder, "*.tiff")))
+    if not os.path.isdir(folder):
+        raise InputError(f"folder not found: {folder}")
+    files = sorted({os.path.normcase(f): f for e in ("*.tif", "*.tiff", "*.TIF", "*.TIFF")
+                    for f in glob.glob(os.path.join(folder, e))}.values())   # Windows globs ignore case: no duplicates
     low = lambda f: os.path.basename(f).lower()
     dark = [f for f in files if low(f).startswith(("dark", "black"))]
     flat = [f for f in files if low(f).startswith("flat")]
@@ -267,9 +283,9 @@ def find_inputs(folder):
             shp = t.pages[0].shape
         (vis if len(shp) == 3 and shp[-1] in (3, 4) else ir).append(f)
     if len(vis) != 1:
-        raise SystemExit(f"ERROR in {folder}: expected exactly one VIS (RGB) image, found {len(vis)}: {[os.path.basename(v) for v in vis]}")
+        raise InputError(f"{folder}: expected exactly one VIS (RGB) image, found {len(vis)}: {[os.path.basename(v) for v in vis]}")
     if not ir:
-        raise SystemExit(f"ERROR in {folder}: no IR image found")
+        raise InputError(f"{folder}: no IR image found")
     if len(ir) > 2:
         WARN.append(f"more than two IR images; using {os.path.basename(ir[0])} and {os.path.basename(ir[1])}, "
                     f"ignoring {[os.path.basename(i) for i in ir[2:]]} (use --ir/--ir2 to choose)")
@@ -299,18 +315,19 @@ def save(out, name, r, vis_orientation=True):
     """Outputs: the three panels (visible, corrected IR, residual) as single SVGs, drawn exactly as in the combined
     SVG, plus the combined figure; raw float data in data/. vis_orientation: rotate by 180 deg (the IR camera is
     rotated ~180 deg relative to VIS)."""
-    os.makedirs(f"{out}/data", exist_ok=True)
+    data = os.path.join(out, "data")
+    os.makedirs(data, exist_ok=True)
     rot = (lambda a: np.rot90(a, 2)) if vis_orientation else (lambda a: a)
     res, ir, flake, exc, vis = (rot(r[k]) for k in ("residual", "ir_c", "flake", "excluded", "vis_ir"))
     outline = rot(r["outline"]) if "outline" in r else None
     if outline is not None:                       # part figures: show only the part in the IR panel too
         ir = np.where(outline, ir, np.nan)
-    tifffile.imwrite(f"{out}/data/{name}_vis.tif", np.clip(np.nan_to_num(vis, nan=0) * 255, 0, 255).astype(np.uint8))
-    tifffile.imwrite(f"{out}/data/{name}_ir_corrected.tif", ir.astype(np.float32))
-    tifffile.imwrite(f"{out}/data/{name}_residual.tif", res.astype(np.float32))
+    tifffile.imwrite(os.path.join(data, f"{name}_vis.tif"), np.clip(np.nan_to_num(vis, nan=0) * 255, 0, 255).astype(np.uint8))
+    tifffile.imwrite(os.path.join(data, f"{name}_ir_corrected.tif"), ir.astype(np.float32))
+    tifffile.imwrite(os.path.join(data, f"{name}_residual.tif"), res.astype(np.float32))
     if "filled" in r:
-        tifffile.imwrite(f"{out}/data/{name}_filled_pixels.tif", (rot(r["filled"]) * 255).astype(np.uint8))
-    import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
+        tifffile.imwrite(os.path.join(data, f"{name}_filled_pixels.tif"), (rot(r["filled"]) * 255).astype(np.uint8))
+    from matplotlib.figure import Figure          # no pyplot: works the same in scripts and Jupyter, any backend
     ys, xs = np.nonzero(flake); sl = (slice(max(ys.min() - 15, 0), ys.max() + 15), slice(max(xs.min() - 15, 0), xs.max() + 15))
     med = float(np.nanmedian(res))
     grey = np.zeros(flake.shape + (4,)); grey[exc] = (0.5, 0.5, 0.5, 1)
@@ -322,25 +339,25 @@ def save(out, name, r, vis_orientation=True):
                 ax.contour(outline[sl], [0.5], colors="yellow", linewidths=1.2); ax.set_title("visible (part outlined)")
         elif kind == "ir":
             im = ax.imshow(ir[sl], cmap="gray", vmin=np.nanpercentile(ir[flake], 1), vmax=np.nanpercentile(ir[flake], 99.5))
-            plt.colorbar(im, ax=ax, fraction=0.046)
+            ax.figure.colorbar(im, ax=ax, fraction=0.046)
             ax.set_title("IR, corrected (dark, flat field, background)\ncontrast to the substrate")
         else:
             im = ax.imshow(res[sl], cmap="RdBu_r", vmin=med - 0.01, vmax=med + 0.01); ax.imshow(grey[sl])
-            plt.colorbar(im, ax=ax, fraction=0.046)
+            ax.figure.colorbar(im, ax=ax, fraction=0.046)
             ax.set_title(f"residual = IR − predicted hexagonal IR\nblue = RG candidate (scale centred on {med:+.3f})")
         ax.axis("off")
 
     kinds = (("visible", "1_visible"), ("ir", "2_ir_corrected"), ("residual", "3_residual"))
-    fig, ax = plt.subplots(1, 3, figsize=(20, 6.5))
+    fig = Figure(figsize=(20, 6.5)); ax = fig.subplots(1, 3)
     for a_, (k, _) in zip(ax, kinds):
         panel(a_, k)
     fig.suptitle(name, fontsize=14)
-    plt.tight_layout(rect=(0, 0, 1, 0.95)); plt.savefig(f"{out}/{name}_residual.svg"); plt.close(fig)
+    fig.tight_layout(rect=(0, 0, 1, 0.95)); fig.savefig(os.path.join(out, f"{name}_residual.svg"))
     for k, fn in kinds:                           # the same panels, one per file, same size as in the combined figure
-        fig, a_ = plt.subplots(figsize=(20 / 3, 6.5))
+        fig = Figure(figsize=(20 / 3, 6.5)); a_ = fig.subplots()
         panel(a_, k)
         fig.suptitle(name, fontsize=12)
-        plt.tight_layout(rect=(0, 0, 1, 0.95)); plt.savefig(f"{out}/{name}_{fn}.svg"); plt.close(fig)
+        fig.tight_layout(rect=(0, 0, 1, 0.95)); fig.savefig(os.path.join(out, f"{name}_{fn}.svg"))
 
 
 def select_part(r, part, by="auto"):
@@ -379,12 +396,14 @@ def run_one(name, inp, out, cal, no_thick=False, vis_orientation=True, part=None
         WARN.append("only one IR image: a second IR image with the flake shifted by ~1/4 field halves the noise and "
                     "checks the flat field.")
     save(out, name, r, vis_orientation)
+    figures = [os.path.join(out, f"{name}_residual.svg")]
     if part:                                       # the same figures again, for the thick (or thin) part only
         m = select_part(r, part, part_by)
         rp = dict(r, flake=m & r["flake"], excluded=r["excluded"] & m,
                   residual=np.where(m, r["residual"], np.nan).astype(np.float32), outline=m)
         save(out, f"{name}_{part}", rp, vis_orientation)
-        tifffile.imwrite(f"{out}/data/{name}_{part}_mask.tif",
+        figures.append(os.path.join(out, f"{name}_{part}_residual.svg"))
+        tifffile.imwrite(os.path.join(out, "data", f"{name}_{part}_mask.tif"),
                          ((np.rot90(m, 2) if vis_orientation else m) * 255).astype(np.uint8))
     f = r["flake"] & ~r["excluded"] & np.isfinite(r["residual"])
     res = r["residual"][f]; med = float(np.median(res)) if f.any() else float("nan")
@@ -392,10 +411,68 @@ def run_one(name, inp, out, cal, no_thick=False, vis_orientation=True, part=None
              f"residual median {med:+.4f}, robust std {1.4826 * float(np.median(np.abs(res - med))):.4f}",
              f"colour cut {'off (--no-thick)' if no_thick else 'on'}",
              f"small holes filled from neighbours: {int(r['filled'].sum())} px (see data/{name}_filled_pixels.tif)", "warnings:"] + [f"  - {w}" for w in WARN]
-    open(f"{out}/{name}_summary.txt", "w").write("\n".join(lines) + "\n")
-    print(f"{name}: done in {time.time() - t0:.1f} s -> {out}/{name}_residual.svg  (residual median {med:+.4f})")
+    with open(os.path.join(out, f"{name}_summary.txt"), "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+    print(f"{name}: done in {time.time() - t0:.1f} s -> {figures[0]}  (residual median {med:+.4f})")
     for w in WARN:
         print(f"  WARNING: {w}")
+    return dict(name=name, out=out, figures=figures, residual_median=med, warnings=list(WARN), result=r)
+
+
+# ---------------- entry points for Python / Jupyter ----------------
+def run(folder=None, *, vis=None, ir=None, ir2=None, dark=None, flats=None, out=None, name=None, part=None,
+        part_by="auto", no_thick=False, ir_orientation=False, calib=None):
+    """Process one flake. Either `folder` (files found by name, see README) or explicit files: vis, ir, optional ir2,
+    dark and flats (a file, a list of files, or a pattern like "C:/data/dark*.tif").
+    part: None, "thick" or "thin". Outputs go to <folder>/residuals unless `out` is given.
+    Returns a dict: name, out, figures (SVG paths), residual_median, warnings, result (the arrays)."""
+    reset_state()
+    cal = dict(np.load(calib or os.path.join(HERE, "calib", "calib.npz")))
+    if vis:
+        if not (ir and dark):
+            raise InputError("vis= needs ir= and dark= (and preferably flats=)")
+        inp = dict(vis=vis, ir=ir, ir2=ir2, dark=dark, flat=flats)
+        name = name or os.path.splitext(os.path.basename(ir))[0]
+        out = out or "residuals"
+    elif folder:
+        folder = os.path.normpath(folder)
+        inp = find_inputs(folder)
+        name = name or os.path.basename(folder)
+        out = out or os.path.join(folder, "residuals")
+    else:
+        raise InputError("give a flake folder, or vis=, ir= and dark=")
+    return run_one(name, inp, out, cal, no_thick, not ir_orientation, part, part_by)
+
+
+def run_batch(parent, out=None, **kw):
+    """Process every sub-folder of `parent` that contains TIFFs. A flake with missing files is skipped with a message.
+    Keyword arguments as in run(). Returns the list of run() results."""
+    subs = sorted(d for d in glob.glob(os.path.join(parent, "*")) if os.path.isdir(d) and find_tifs(d))
+    print(f"{len(subs)} flake folders")
+    done = []
+    for d in subs:
+        try:
+            done.append(run(d, out=out and os.path.join(out, os.path.basename(d)), **kw))
+        except InputError as e:
+            print(f"{os.path.basename(d)}: skipped - {e}")
+    return done
+
+
+def find_tifs(folder):
+    return [f for e in ("*.tif", "*.tiff", "*.TIF", "*.TIFF") for f in glob.glob(os.path.join(folder, e))]
+
+
+def show(results, width=1100):
+    """Show the figures of run() / run_batch() results in a Jupyter notebook."""
+    import re
+    from IPython.display import HTML, display
+    for r in results if isinstance(results, list) else [results]:
+        for f in r["figures"]:
+            with open(f, encoding="utf-8") as fh:
+                svg = fh.read()
+            svg = svg[svg.index("<svg"):]                                      # drop the XML header
+            svg = re.sub(r'(<svg[^>]*?)\swidth="[^"]*"\s+height="[^"]*"', r'\1 width="100%"', svg, count=1)  # fit the page
+            display(HTML(f"<div style='max-width:{width}px'>{svg}</div>"))
 
 
 if __name__ == "__main__":
@@ -414,28 +491,15 @@ if __name__ == "__main__":
                     help="how the part is found: IR contrast, VIS brightness, or auto (IR; VIS when the flake fills the field)")
     ap.add_argument("--ir-orientation", action="store_true", help="keep the IR camera orientation (default: rotate to VIS orientation)")
     a = ap.parse_args()
-    cal = dict(np.load(a.calib))
-    vis_or = not a.ir_orientation
-    if a.vis:                                              # explicit files
-        if not (a.ir and a.dark):
-            ap.error("--vis needs --ir and --dark (and preferably --flats)")
-        inp = dict(vis=a.vis, ir=a.ir, ir2=a.ir2, dark=a.dark, flat=a.flats)
-        name = a.name or os.path.splitext(os.path.basename(a.ir))[0]
-        run_one(name, inp, a.out or "residuals", cal, a.no_thick, vis_or, a.part, a.part_by)
-    elif a.folder and a.batch:
-        subs = sorted(d for d in glob.glob(os.path.join(a.folder, "*")) if os.path.isdir(d) and glob.glob(os.path.join(d, "*.tif*")))
-        print(f"{len(subs)} flake folders")
-        for d in subs:
-            try:
-                WARN.clear(); inp = find_inputs(d)
-                run_one(os.path.basename(d.rstrip("/")), inp,
-                        a.out and os.path.join(a.out, os.path.basename(d)) or os.path.join(d, "residuals"), cal, a.no_thick, vis_or, a.part, a.part_by)
-            except SystemExit as e:
-                print(f"{os.path.basename(d)}: skipped - {e}")
-    elif a.folder:
-        WARN.clear(); inp = find_inputs(a.folder)
-        d = a.folder.rstrip("/")
-        run_one(a.name or os.path.basename(d), inp,
-                a.out or os.path.join(d, "residuals"), cal, a.no_thick, vis_or, a.part, a.part_by)
-    else:
-        ap.print_help()
+    kw = dict(part=a.part, part_by=a.part_by, no_thick=a.no_thick, ir_orientation=a.ir_orientation, calib=a.calib)
+    try:
+        if a.vis:                                          # explicit files
+            run(vis=a.vis, ir=a.ir, ir2=a.ir2, dark=a.dark, flats=a.flats, out=a.out, name=a.name, **kw)
+        elif a.folder and a.batch:
+            run_batch(a.folder, out=a.out, **kw)
+        elif a.folder:
+            run(a.folder, out=a.out, name=a.name, **kw)
+        else:
+            ap.print_help()
+    except InputError as e:
+        raise SystemExit(f"ERROR: {e}")
