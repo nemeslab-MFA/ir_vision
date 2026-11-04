@@ -332,6 +332,7 @@ def save(out, name, r, vis_orientation=True):
     if "filled" in r:
         tifffile.imwrite(os.path.join(data, f"{name}_filled_pixels.tif"), (rot(r["filled"]) * 255).astype(np.uint8))
     from matplotlib.figure import Figure          # no pyplot: works the same in scripts and Jupyter, any backend
+    save_ir_image(out, name, ir, flake)
     ys, xs = np.nonzero(flake); sl = (slice(max(ys.min() - 15, 0), ys.max() + 15), slice(max(xs.min() - 15, 0), xs.max() + 15))
     med = float(np.nanmedian(res))
     grey = np.zeros(flake.shape + (4,)); grey[exc] = (0.5, 0.5, 0.5, 1)
@@ -362,6 +363,17 @@ def save(out, name, r, vis_orientation=True):
         panel(a_, k)
         fig.suptitle(name, fontsize=12)
         fig.tight_layout(rect=(0, 0, 1, 0.95)); fig.savefig(os.path.join(out, f"{name}_{fn}.svg"))
+
+
+def save_ir_image(out, name, ir, flake=None):
+    """Corrected IR as plain images (no axes): <name>_ir_corrected.tif (float32 contrast values, opens in ImageJ/Fiji)
+    and <name>_ir_corrected.png (8-bit greyscale, same contrast scale as the figure panel; black outside the field)."""
+    import matplotlib.image as mimg
+    ref = ir[flake] if flake is not None and flake.any() else ir[np.isfinite(ir)]
+    lo, hi = np.nanpercentile(ref, 1), np.nanpercentile(ref, 99.5)
+    tifffile.imwrite(os.path.join(out, f"{name}_ir_corrected.tif"), ir.astype(np.float32))
+    mimg.imsave(os.path.join(out, f"{name}_ir_corrected.png"), np.nan_to_num(np.clip((ir - lo) / (hi - lo), 0, 1), nan=0.0),
+                cmap="gray", vmin=0, vmax=1)
 
 
 def select_part(r, part, by="auto"):

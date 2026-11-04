@@ -105,6 +105,8 @@ Files are recognised by name (`dark*`/`black*`, `flat*`) and by type (the RGB im
 | `<name>_1_visible.svg` | visible image (same crop and look as in the combined figure) |
 | `<name>_2_ir_corrected.svg` | corrected IR: contrast to the substrate, with colour bar |
 | `<name>_3_residual.svg` | residual, colour scale centred on the flake median, with colour bar |
+| `<name>_ir_corrected.tif` | corrected IR as a plain image: float32 contrast values (opens in ImageJ/Fiji) |
+| `<name>_ir_corrected.png` | corrected IR as a plain greyscale picture, same contrast scale as the figure |
 | `<name>_summary.txt` | files used, residual level, warnings |
 | `data/<name>_vis.tif` | visible image on the IR pixel grid (RGB, 8 bit), for analysis |
 | `data/<name>_ir_corrected.tif` | corrected IR contrast (float32; −0.10 = 10 % darker than the substrate) |
